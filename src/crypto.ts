@@ -1,4 +1,4 @@
-import nacl, { BoxKeyPair, SignKeyPair } from 'tweetnacl';
+import nacl from 'tweetnacl';
 import { toByteArray, fromByteArray } from 'base64-js';
 import { Range } from 'semver';
 
@@ -202,60 +202,60 @@ export function trimAndLowercase(str: string) {
  * Typesafe KeyPair class for Public/Private Key Cryptography.
  */
 export interface KeyPair {
-  public: PublicKey;
-  private: PrivateKey;  
+  encryptionPublicKey: PublicKey;
+  encryptionPrivateKey: PrivateKey;  
 }
 
 export class EncryptionKeyPair implements KeyPair {
-  public: EncryptionPublicKey;
-  private: EncryptionPrivateKey;
+  public encryptionPublicKey: EncryptionPublicKey;
+  readonly encryptionPrivateKey: EncryptionPrivateKey;
 
   constructor(pub: Uint8Array | string, priv: Uint8Array | string) {
-    this.private = {visibility:'private', type: 'encryption', key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
-    this.public = {visibility: 'public', type: 'encryption', key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
+    this.encryptionPrivateKey = {visibility:'private', type: 'encryption', key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
+    this.encryptionPublicKey = {visibility: 'public', type: 'encryption', key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
   }
   /**
    * returns a non-type safe keypair that can be easily plugged into any tweetnacl function.
    * @returns {BoxKeypair} tweetnacl keypair.
    */
-  toBoxKeyPair = (): BoxKeyPair => {
+  toBoxKeyPair = (): nacl.BoxKeyPair => {
     return {
-      publicKey: toByteArray(this.public.key),
-      secretKey: toByteArray(this.private.key),
+      publicKey: toByteArray(this.encryptionPublicKey.key),
+      secretKey: toByteArray(this.encryptionPrivateKey.key),
     }
   }
 }
 
 export class SigningKeyPair implements KeyPair {
-  public: SigningPublicKey;
-  private: SigningPrivateKey;
+  public encryptionPublicKey: SigningPublicKey;
+  readonly encryptionPrivateKey: SigningPrivateKey;
 
   constructor(pub: Uint8Array | string, priv: Uint8Array | string) {
-    this.private = {visibility:'private', type: 'signing', key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
-    this.public = {visibility: 'public', type: 'signing', key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
+    this.encryptionPublicKey = {visibility: 'public', type: 'signing', key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
+    this.encryptionPrivateKey = {visibility:'private', type: 'signing', key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
   }
 
   /**
    * returns a non-type safe keypair that can be easily plugged into any tweetnacl function.
    * @returns {BoxKeypair} tweetnacl keypair.
    */
-  toSignKeyPair = (): SignKeyPair => {
+  toSignKeyPair = (): nacl.SignKeyPair => {
     return {
-      publicKey: toByteArray(this.public.key),
-      secretKey: toByteArray(this.private.key),
+      publicKey: toByteArray(this.encryptionPublicKey.key),
+      secretKey: toByteArray(this.encryptionPrivateKey.key),
     }
   }
 }
 
-export interface TypedEncryptionPublicKey<T extends String> extends EncryptionPublicKey {
+export interface TypedEncryptionPublicKey<T extends string> extends EncryptionPublicKey {
   subtype: T
 }
 
-export interface TypedEncryptionPrivateKey<T extends String> extends EncryptionPrivateKey {
+export interface TypedEncryptionPrivateKey<T extends string> extends EncryptionPrivateKey {
   subtype: T
 }
 
-export class TypedEncryptionKeyPair<T extends String> extends EncryptionKeyPair {
+export class TypedEncryptionKeyPair<T extends string> extends EncryptionKeyPair {
   public: TypedEncryptionPublicKey<T>;
   private: TypedEncryptionPrivateKey<T>;
 
@@ -266,22 +266,22 @@ export class TypedEncryptionKeyPair<T extends String> extends EncryptionKeyPair 
   }
 }
 
-export interface TypedSigningPublicKey<T extends String> extends SigningPublicKey {
+export interface TypedSigningPublicKey<T extends string> extends SigningPublicKey {
   subtype: T
 }
 
-export interface TypedSigningPrivateKey<T extends String> extends SigningPrivateKey {
+export interface TypedSigningPrivateKey<T extends string> extends SigningPrivateKey {
   subtype: T
 }
 
-export class TypedSigningKeyPair<T extends String> extends SigningKeyPair {
-  public: TypedSigningPublicKey<T>;
-  private: TypedSigningPrivateKey<T>;
+export class TypedSigningKeyPair<T extends string> extends SigningKeyPair {
+  declare public encryptionPublicKey: TypedSigningPublicKey<T>;
+  declare readonly encryptionPrivateKey: TypedSigningPrivateKey<T>;
 
   constructor(pub: Uint8Array | string, priv: Uint8Array | string, subtype: T) {
     super(pub, priv);
-    this.private = {visibility: 'private', type: 'signing', subtype, key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
-    this.public = {visibility: 'public', type: 'signing', subtype, key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
+    this.encryptionPublicKey = { visibility: 'public', type: 'signing', subtype, key: (typeof pub === 'string') ? pub : fromByteArray(pub) };
+    this.encryptionPrivateKey = { visibility: 'private', type: 'signing', subtype, key: (typeof priv === 'string') ? priv : fromByteArray(priv) };
   }
 }
 

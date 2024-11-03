@@ -4,43 +4,43 @@ import { toByteArray, fromByteArray } from 'base64-js';
 describe('test keypairs and symmetric keys', () => {
   it('generates keypairs', () => {
     const ekp: yc.EncryptionKeyPair = yc.generateEncryptionKeyPair();
-    console.log('public: '+ekp.public.key);
-    console.log('private: '+ekp.private.key);
-    expect(ekp.public.type).toEqual('encryption');
-    expect(ekp.public.visibility).toEqual('public');
-    expect(ekp.private.type).toEqual('encryption');
-    expect(ekp.private.visibility).toEqual('private');
+    console.log('public: '+ekp.encryptionPublicKey.key);
+    console.log('private: '+ekp.encryptionPrivateKey.key);
+    expect(ekp.encryptionPublicKey.type).toEqual('encryption');
+    expect(ekp.encryptionPublicKey.visibility).toEqual('public');
+    expect(ekp.encryptionPrivateKey.type).toEqual('encryption');
+    expect(ekp.encryptionPrivateKey.visibility).toEqual('private');
   });
 
   it('generates signing keypairs', () => {
     const skp: yc.SigningKeyPair = yc.generateSigningKeyPair();
-    console.log('public: '+skp.public.key);
-    console.log('private: '+skp.private.key);
-    expect(skp.public.type).toEqual('signing');
-    expect(skp.public.visibility).toEqual('public');
-    expect(skp.private.type).toEqual('signing');
-    expect(skp.private.visibility).toEqual('private');
+    console.log('public: '+skp.encryptionPublicKey.key);
+    console.log('private: '+skp.encryptionPrivateKey.key);
+    expect(skp.encryptionPublicKey.type).toEqual('signing');
+    expect(skp.encryptionPublicKey.visibility).toEqual('public');
+    expect(skp.encryptionPrivateKey.type).toEqual('signing');
+    expect(skp.encryptionPrivateKey.visibility).toEqual('private');
   });
 
   it('handles base64', () => {
     const ekp = new yc.EncryptionKeyPair('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=','GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(ekp.private.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(ekp.public.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
+    expect(ekp.encryptionPrivateKey.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
+    expect(ekp.encryptionPublicKey.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
 
     const skp = new yc.SigningKeyPair('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=','GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(skp.private.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(skp.public.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
+    expect(skp.encryptionPrivateKey.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
+    expect(skp.encryptionPublicKey.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
 
   });
 
   it('handles byteArrays', () => {
     const ekp = new yc.EncryptionKeyPair(toByteArray('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE='),toByteArray('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k='));
-    expect(ekp.private.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(ekp.public.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
+    expect(ekp.encryptionPrivateKey.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
+    expect(ekp.encryptionPublicKey.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
 
     const skp = new yc.SigningKeyPair(toByteArray('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE='),toByteArray('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k='));
-    expect(skp.private.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(skp.public.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
+    expect(skp.encryptionPrivateKey.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
+    expect(skp.encryptionPublicKey.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
   });
 
 });
@@ -81,8 +81,8 @@ describe('test AEAD', () => {
     const aliceSign = yc.generateSigningKeyPair();
     const bob = yc.generateEncryptionKeyPair();
     const testString = 'This is a test message';
-    const encrypted = yc.AEAD.encryptAsymmetric(testString, yc.StringDatagramCodec, alice.private, bob.public, aliceSign.private);
-    const decrypted = yc.AEAD.decryptAsymmetric(encrypted, yc.StringDatagramCodec, bob.private, alice.public, aliceSign.public);
+    const encrypted = yc.AEAD.encryptAsymmetric(testString, yc.StringDatagramCodec, alice.encryptionPrivateKey, bob.encryptionPublicKey, aliceSign.encryptionPrivateKey);
+    const decrypted = yc.AEAD.decryptAsymmetric(encrypted, yc.StringDatagramCodec, bob.encryptionPrivateKey, alice.encryptionPublicKey, aliceSign.encryptionPublicKey);
     expect(testString).toEqual(decrypted);
     console.log('Asymmetric decrypted: '+decrypted);
   });
@@ -167,8 +167,8 @@ describe('test sealing and unsealing', () => {
     const testMetadata: TestMetadata = { type: 'datagram://json/test', version: '0.1.0'};
     const testCodec = yc.createJsonDatagramCodec<TestType, TestMetadata>(testMetadata);
 
-    const sealedbox = yc.AEAD.seal(testObject, testCodec, alice.public);
-    const unsealedData = yc.AEAD.unseal(sealedbox, testCodec, alice.private);
+    const sealedbox = yc.AEAD.seal(testObject, testCodec, alice.encryptionPublicKey);
+    const unsealedData = yc.AEAD.unseal(sealedbox, testCodec, alice.encryptionPrivateKey);
     expect(unsealedData).toEqual(testObject);
   });
   it('fails to unseal with invalid keys', async () => {
@@ -192,7 +192,7 @@ describe('test sealing and unsealing', () => {
     const testMetadata: TestMetadata = { type: 'datagram://json/test', version: '0.1.0'};
     const testCodec = yc.createJsonDatagramCodec<TestType, TestMetadata>(testMetadata);
 
-    const sealedbox = yc.AEAD.seal(testObject, testCodec, alice.public);
-    expect(() => yc.AEAD.unseal(sealedbox, testCodec, bob.private)).toThrow();
+    const sealedbox = yc.AEAD.seal(testObject, testCodec, alice.encryptionPublicKey);
+    expect(() => yc.AEAD.unseal(sealedbox, testCodec, bob.encryptionPrivateKey)).toThrow();
   });
 })

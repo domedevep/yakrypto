@@ -49,7 +49,7 @@ export const createJsonDatagramCodec = <T, M extends DatagramMetadata>(metadata:
       return utf8StringToBytes(SuperJSON.stringify(data));
     },
     deserialize: (bytes: Uint8Array) => {
-      return SuperJSON.parse(bytesToUtf8String(bytes)) as T;
+      return SuperJSON.parse(bytesToUtf8String(bytes));
     }
   }
 }
