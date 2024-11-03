@@ -1,17 +1,19 @@
 {
-  "name": "@yakrypto/crypto",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@domedevep/yakrypto",
+  "version": "1.0.0",
   "type": "module",
   "module": "commonjs",
   "main": "dist/index.js",
   "author": "Domenico Scoppettone <domedevep@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/yaki-inc/crypto",
+  "homepage": "https://github.com/yakrypto/crypto",
   "repository": {
     "type": "git",
-    "url": "git@github.com:domedevep/yakrypto.git"
+    "url": "https://github.com/domedevep/yakrypto.git"
   },
+  "publishConfig": {
+      "registry": "https://npm.pkg.github.com/"
+   },
   "bugs": {
     "url": "https://github.com/domedevep/yakrypto/issues"
   },
@@ -28,7 +30,8 @@
     "lint": "eslint --ext .js,.ts .",
     "build": "rm -rf dist && tsc",
     "build:watch": "tsc --watch",
-    "test": "jest tests"
+    "test": "jest tests",
+    "publish:github": "npm publish --registry=https://npm.pkg.github.com --access=restricted"
   },
   "dependencies": {
     "base64-js": "^1.5.1",
