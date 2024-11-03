@@ -1,18 +1,19 @@
 {
-  "name": "@yaki-inc/crypto",
-  "version": "0.1.3",
+  "name": "@yakrypto/crypto",
+  "version": "0.0.1",
+  "private": true,
   "type": "module",
   "module": "commonjs",
   "main": "dist/index.js",
-  "author": "Vijay Arunkumar <vijay@yaki.app>",
+  "author": "Domenico Scoppettone <domedevep@gmail.com>",
   "license": "MIT",
   "homepage": "https://github.com/yaki-inc/crypto",
   "repository": {
     "type": "git",
-    "url": "git@github.com:yaki-inc/crypto.git"
+    "url": "git@github.com:domedevep/yakrypto.git"
   },
   "bugs": {
-    "url": "https://github.com/yaki-inc/crypto/issues"
+    "url": "https://github.com/domedevep/yakrypto/issues"
   },
   "keywords": [
     "encryption",

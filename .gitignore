@@ -131,3 +131,5 @@ dist
 
 # VSCODE
 .vscode/
+
+.npmrc
