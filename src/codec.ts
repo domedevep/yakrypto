@@ -66,14 +66,14 @@ export type PermissionGrantDatagramMetadata = {
 //   }
 // };
 
-// export const createJsonDatagramCodec = <T, M extends DatagramMetadata>(
-//   metadata: M, 
-//   versionRange: string = '^0.1.0'
-// ): DatagramCodec<T, M> => {
-//   return {
-//     metadata,
-//     versionRange,
-//     serialize: (data: T) => new Uint8Array(Buffer.from(JSON.stringify(data))),
-//     deserialize: (bytes: Uint8Array) => JSON.parse(Buffer.from(bytes).toString())
-//   };
-// };
+export const createJsonDatagramCodec = <T, M extends DatagramMetadata>(
+  metadata: M, 
+  versionRange: string = '^0.1.0'
+): DatagramCodec<T, M> => {
+  return {
+    metadata,
+    versionRange,
+    serialize: (data: T) => new Uint8Array(Buffer.from(JSON.stringify(data))),
+    deserialize: (bytes: Uint8Array) => JSON.parse(Buffer.from(bytes).toString())
+  };
+};
