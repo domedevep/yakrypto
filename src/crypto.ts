@@ -1,6 +1,6 @@
 // crypto.ts
-import {
-  createSecretKey, generateKeyPairSync, randomBytes, createHash, createHmac,
+import crypto, {
+  createSecretKey, generateKeyPairSync, createHash, createHmac,
   createCipheriv, createDecipheriv, type CipherKey, publicEncrypt, privateDecrypt
 } from 'crypto';
 
@@ -51,7 +51,7 @@ export class AEAD {
     key: SymmetricKey
   ): EncryptedDatagram<T, M> {
     const serialized = codec.serialize(data);
-    const iv = new Uint8Array(randomBytes(this.IV_LENGTH));  // Using Uint8Array directly
+    const iv = new Uint8Array(crypto.randomBytes(this.IV_LENGTH));  // Using Uint8Array directly
 
     // Ensure `key` is in the correct format (BinaryLike) by using createSecretKey.
     const cipher = createCipheriv(this.ALGORITHM, createSecretKey(key), iv);
@@ -107,7 +107,7 @@ export class AEAD {
     codec: DatagramCodec<T, M>,
     publicKey: string
   ): EncryptedDatagram<T, M> {
-    const key = new Uint8Array(randomBytes(32));
+    const key = new Uint8Array(crypto.randomBytes(32));
     const encrypted = this.encryptSymmetric(data, codec, key);
     const encryptedKey = publicEncrypt(publicKey, new Uint8Array(Buffer.from(key)));
 
@@ -132,10 +132,28 @@ export class AEAD {
       key
     );
   }
+
+  static encryptAsymmetricFrontend<T, M extends DatagramMetadata>(
+    data: T,
+    codec: DatagramCodec<T, M>,
+    publicKey: string
+  ): EncryptedDatagram<T, M> {
+    const key = new Uint8Array((32));
+    const encrypted = this.encryptSymmetric(data, codec, key);
+    const encryptedKey = publicEncrypt(publicKey, new Uint8Array(Buffer.from(key)));
+
+    return {
+      payload: `${encryptedKey.toString('base64')}.${encrypted.payload}`,
+      metadata: codec.metadata
+    };
+  }
+
 }
 
+
+
 export function generateSymmetricKey(): SymmetricKey {
-  return new Uint8Array(randomBytes(32));
+  return new Uint8Array(crypto.randomBytes(32));
 }
 
 export function generateKeyPair(): {
