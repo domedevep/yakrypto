@@ -1,6 +1,6 @@
 {
   "name": "@domedevep/yakrypto",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "module": "NodeNext",
   "main": "dist/src/index.js",
   "author": "Domenico Scoppettone <domedevep@gmail.com>",
@@ -39,6 +39,7 @@
     "@types/semver": "7.5.8",
     "base64-js": "^1.5.1",
     "browser-crypto": "^2.1.0",
+    "buffer": "^6.0.3",
     "i": "^0.3.7",
     "npm": "^10.9.0",
     "semver": "7.6.2",

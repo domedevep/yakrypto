@@ -3,6 +3,7 @@ import {
   createSecretKey, generateKeyPairSync, createHash, createHmac,
   createCipheriv, createDecipheriv, type CipherKey, publicEncrypt, privateDecrypt
 } from 'crypto';
+import { Buffer } from 'buffer';
 
 import { randomBytes } from '@noble/hashes/utils';
 
