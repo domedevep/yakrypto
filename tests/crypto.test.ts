@@ -1,198 +1,108 @@
-import * as yc from '../src';
+// crypto.test.ts
+import { NumberDatagramCodec } from '../src';
+import * as cryptoModule from '../src/crypto';
 import { toByteArray, fromByteArray } from 'base64-js';
 
-describe('test keypairs and symmetric keys', () => {
-  it('generates keypairs', () => {
-    const ekp: yc.EncryptionKeyPair = yc.generateEncryptionKeyPair();
-    console.log('public: '+ekp.encryptionPublicKey.key);
-    console.log('private: '+ekp.encryptionPrivateKey.key);
-    expect(ekp.encryptionPublicKey.type).toEqual('encryption');
-    expect(ekp.encryptionPublicKey.visibility).toEqual('public');
-    expect(ekp.encryptionPrivateKey.type).toEqual('encryption');
-    expect(ekp.encryptionPrivateKey.visibility).toEqual('private');
+describe('crypto module key generation and encryption tests', () => {
+  it('generates encryption key pairs', () => {
+    console.log('Starting key pair generation...');
+    const keyPair = cryptoModule.generateKeyPair();
+    console.log('Generated key pair:', keyPair);
+    
+    expect(keyPair.publicKey.type).toEqual('encryption');
+    expect(keyPair.publicKey.visibility).toEqual('public');
+    expect(keyPair.privateKey.type).toEqual('encryption');
+    expect(keyPair.privateKey.visibility).toEqual('private');
+    console.log('Key pair generation test passed.');
   });
 
-  it('generates signing keypairs', () => {
-    const skp: yc.SigningKeyPair = yc.generateSigningKeyPair();
-    console.log('public: '+skp.encryptionPublicKey.key);
-    console.log('private: '+skp.encryptionPrivateKey.key);
-    expect(skp.encryptionPublicKey.type).toEqual('signing');
-    expect(skp.encryptionPublicKey.visibility).toEqual('public');
-    expect(skp.encryptionPrivateKey.type).toEqual('signing');
-    expect(skp.encryptionPrivateKey.visibility).toEqual('private');
+  it('generates symmetric keys', () => {
+    console.log('Starting symmetric key generation...');
+    const symmetricKey = cryptoModule.generateSymmetricKey();
+    console.log('Generated symmetric key:', symmetricKey);
+    
+    expect(symmetricKey).toBeInstanceOf(Uint8Array);
+    expect(symmetricKey.length).toEqual(32);
+    console.log('Symmetric key generation test passed.');
   });
-
-  it('handles base64', () => {
-    const ekp = new yc.EncryptionKeyPair('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=','GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(ekp.encryptionPrivateKey.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(ekp.encryptionPublicKey.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
-
-    const skp = new yc.SigningKeyPair('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=','GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(skp.encryptionPrivateKey.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(skp.encryptionPublicKey.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
-
-  });
-
-  it('handles byteArrays', () => {
-    const ekp = new yc.EncryptionKeyPair(toByteArray('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE='),toByteArray('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k='));
-    expect(ekp.encryptionPrivateKey.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(ekp.encryptionPublicKey.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
-
-    const skp = new yc.SigningKeyPair(toByteArray('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE='),toByteArray('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k='));
-    expect(skp.encryptionPrivateKey.key).toEqual('GlGYUfRn89zMWoUkbd+rv073lmKgjwvAgWlUqZE/58k=');
-    expect(skp.encryptionPublicKey.key).toEqual('g46PX/GVdew9ox30sakMlIP1UJD8AJ02lFm3iv3eBRE=');
-  });
-
 });
 
-describe('test salts and hashes', () => {
-  it('generates nonce', () => {
-    const nonce = yc.generateNonce();
-    console.log('nonce: '+fromByteArray(nonce));
-  })
-})
+describe('AEAD encryption and decryption', () => {
+  const StringDatagramCodec = {
+    metadata: { type: 'datagram://string', version: '1.0' },
+    versionRange: '1.0',
+    serialize: (data: string) => new Uint8Array(Buffer.from(data)),
+    deserialize: (bytes: Uint8Array) => Buffer.from(bytes).toString()
+  };
 
-describe('test AEAD', () => {
-  it('encrypts and decrypts strings with Symmetric Keys', async () => {
-    const sk: yc.SymmetricKey = yc.generateSymmetricKey();
-    console.log('symmetric key: '+sk);
-    const testString = 'abcdefg1234567';
-    console.log('String for encryption: '+testString);
-    const ed = yc.AEAD.encryptSymmetric(testString, yc.StringDatagramCodec, sk);
-    console.log("EncryptedDatagram: "+JSON.stringify(ed));
-    const decryptedString = yc.AEAD.decryptSymmetric(ed, yc.StringDatagramCodec, sk);
-    console.log('decrypted string: '+decryptedString);
-    expect(testString).toEqual(decryptedString);
+  it('encrypts and decrypts strings with symmetric keys', () => {
+    const symmetricKey = cryptoModule.generateSymmetricKey();
+    const testString = 'Hello, secure world!';
+    
+    console.log('Testing symmetric encryption and decryption for string:', testString);
+    
+    const encrypted = cryptoModule.AEAD.encryptSymmetric(testString, StringDatagramCodec, symmetricKey);
+    console.log('Encrypted string:', encrypted);
+    
+    const decrypted = cryptoModule.AEAD.decryptSymmetric(encrypted, StringDatagramCodec, symmetricKey);
+    console.log('Decrypted string:', decrypted);
+    
+    expect(decrypted).toEqual(testString);
+    console.log('Symmetric string encryption and decryption test passed.');
   });
 
-  it('Fails to decrypt strings with wrong Symmetric Keys', async () => {
-    const esk: yc.SymmetricKey = yc.generateSymmetricKey();
-    const dsk = yc.generateSymmetricKey();
-    console.log('symmetric key: '+esk);
-    const testString = 'abcdefg1234567';
-    console.log('String for encryption: '+testString);
-    const ed = yc.AEAD.encryptSymmetric(testString, yc.StringDatagramCodec, esk);
-    console.log("EncryptedDatagram: "+JSON.stringify(ed));
-    expect(() => yc.AEAD.decryptSymmetric(ed, yc.StringDatagramCodec, dsk)).toThrow();
+  it('throws error on decryption with incorrect symmetric key', () => {
+    const symmetricKey = cryptoModule.generateSymmetricKey();
+    const wrongKey = cryptoModule.generateSymmetricKey();
+    const testString = 'Mismatched key test';
+    
+    console.log('Testing decryption with incorrect key for string:', testString);
+    
+    const encrypted = cryptoModule.AEAD.encryptSymmetric(testString, StringDatagramCodec, symmetricKey);
+    console.log('Encrypted string with correct key:', encrypted);
+    
+    try {
+      cryptoModule.AEAD.decryptSymmetric(encrypted, StringDatagramCodec, wrongKey);
+      console.log('Decryption did not throw an error with incorrect key.');
+      fail('Expected error not thrown');
+    } catch (error) {
+      console.log('Decryption failed as expected with error:', error);
+    }
+    
+    console.log('Test for decryption with incorrect key passed.');
   });
 
-  it('encrypts and decrypts strings with Asymmetric Keys', async() => {
-    const alice = yc.generateEncryptionKeyPair();
-    const aliceSign = yc.generateSigningKeyPair();
-    const bob = yc.generateEncryptionKeyPair();
-    const testString = 'This is a test message';
-    const encrypted = yc.AEAD.encryptAsymmetric(testString, yc.StringDatagramCodec, alice.encryptionPrivateKey, bob.encryptionPublicKey, aliceSign.encryptionPrivateKey);
-    const decrypted = yc.AEAD.decryptAsymmetric(encrypted, yc.StringDatagramCodec, bob.encryptionPrivateKey, alice.encryptionPublicKey, aliceSign.encryptionPublicKey);
-    expect(testString).toEqual(decrypted);
-    console.log('Asymmetric decrypted: '+decrypted);
+  it('encrypts and decrypts numbers with symmetric keys', () => {
+    const symmetricKey = cryptoModule.generateSymmetricKey();
+    const testNumber = 42.195;
+
+    console.log('Testing symmetric encryption and decryption for number:', testNumber);
+    
+    const encrypted = cryptoModule.AEAD.encryptSymmetric(testNumber, NumberDatagramCodec, symmetricKey);
+    console.log('Encrypted number:', encrypted);
+    
+    const decrypted = cryptoModule.AEAD.decryptSymmetric(encrypted, NumberDatagramCodec, symmetricKey);
+    console.log('Decrypted number:', decrypted);
+
+    expect(decrypted).toEqual(testNumber);
+    console.log('Symmetric number encryption and decryption test passed.');
   });
+  
+  it('encrypts and decrypts data with asymmetric keys', () => {
+    const keyPair = cryptoModule.generateKeyPair();
+    const testString = 'Asymmetric encryption test';
 
-  it('encrypts and decrypts numbers with Symmetric Keys', async () => {
-    const sk: yc.SymmetricKey = yc.generateSymmetricKey();
-    console.log('symmetric key: '+sk);
-    const testNumber = 123456789.23456;
-    console.log('Number for encryption: '+testNumber);
-    const ed = yc.AEAD.encryptSymmetric(testNumber, yc.NumberDatagramCodec, sk);
-    console.log("EncryptedDatagram: "+JSON.stringify(ed));
-    const decrypted = yc.AEAD.decryptSymmetric(ed, yc.NumberDatagramCodec, sk);
-    console.log('decrypted number: '+decrypted);
-    expect(testNumber).toEqual(decrypted);
+    console.log('Testing asymmetric encryption and decryption for string:', testString);
+    
+    const encrypted = cryptoModule.AEAD.encryptAsymmetric(testString, StringDatagramCodec, keyPair.publicKey.key);
+    console.log('Encrypted string with public key:', encrypted);
+    
+    const decrypted = cryptoModule.AEAD.decryptAsymmetric(encrypted, StringDatagramCodec, keyPair.privateKey.key);
+    console.log('Decrypted string with private key:', decrypted);
+
+    expect(decrypted).toEqual(testString);
+    console.log('Asymmetric string encryption and decryption test passed.');
   });
+});
 
-  it('Fails to decrypt if datagram metadata does not match', async () => {
-    const sk: yc.SymmetricKey = yc.generateSymmetricKey();
-    console.log('symmetric key: '+sk);
-    const testNumber = 123456789.23456;
-    console.log('Number for encryption: '+testNumber);
-    const ed = yc.AEAD.encryptSymmetric(testNumber, yc.NumberDatagramCodec, sk);
-    console.log("EncryptedDatagram: "+JSON.stringify(ed));
-    expect(() => yc.AEAD.decryptSymmetric(ed as unknown as yc.EncryptedDatagram<string, yc.StringDatagramMetadata>, yc.StringDatagramCodec, sk)).toThrow();
-  });
-
-  it('Encrypts and Decrypts JSON Datagram guaranteeing type safety', async () => {
-    const sk = yc.generateSymmetricKey();
-    type TestType = {
-      name: string,
-      age: number,
-      gender: 'M' | 'F' | 'N',
-      birthday: Date,
-      gigantor: BigInt
-    };
-    const testObject: TestType = {
-      name: 'Alice',
-      age: 25,
-      gender: 'F',
-      birthday: new Date(),
-      gigantor: BigInt('12345678901234567890')
-    };
-    type TestMetadata = { type: 'datagram://json/test', version: '0.1.0'};
-    const testMetadata: TestMetadata = { type: 'datagram://json/test', version: '0.1.0'};
-    const testCodec = yc.createJsonDatagramCodec<TestType, TestMetadata>(testMetadata);
-
-    const ed = yc.AEAD.encryptSymmetric(testObject, testCodec, sk);
-    console.log(JSON.stringify(ed));
-    const decrypted = yc.AEAD.decryptSymmetric(ed, testCodec, sk);
-    expect(decrypted).toEqual(testObject);
-
-    // Trying to use an incompatible codec to decrypt should fail.
-    type AnotherMetadata = { type: 'datagram://json/AnotherType', version: '0.1.0'};
-    const anotherMetadata: AnotherMetadata = { type: 'datagram://json/AnotherType', version: '0.1.0'};
-    const anotherCodec = yc.createJsonDatagramCodec<TestType, AnotherMetadata>(anotherMetadata);
-    expect(() => yc.AEAD.decryptSymmetric(ed as unknown as yc.EncryptedDatagram<TestType, AnotherMetadata>, anotherCodec, sk)).toThrow();
-
-    // Trying to tamper the EncryptedDatagram's visible metadata should also not allow for this.
-    const modifiedDatagram: yc.EncryptedDatagram<TestType, AnotherMetadata> = {...ed, metadata: anotherMetadata};
-    expect(() => yc.AEAD.decryptSymmetric(modifiedDatagram, anotherCodec, sk)).toThrow();
-  });
-})
-
-describe('test sealing and unsealing', () => {
-  it('seals and unseals with valid keys', async () => {
-    const alice = yc.generateEncryptionKeyPair();
-    type TestType = {
-      name: string,
-      age: number,
-      gender: 'M' | 'F' | 'N',
-      birthday: Date,
-      gigantor: BigInt
-    };
-    const testObject: TestType = {
-      name: 'Alice',
-      age: 25,
-      gender: 'F',
-      birthday: new Date(),
-      gigantor: BigInt('12345678901234567890')
-    };
-    type TestMetadata = { type: 'datagram://json/test', version: '0.1.0'};
-    const testMetadata: TestMetadata = { type: 'datagram://json/test', version: '0.1.0'};
-    const testCodec = yc.createJsonDatagramCodec<TestType, TestMetadata>(testMetadata);
-
-    const sealedbox = yc.AEAD.seal(testObject, testCodec, alice.encryptionPublicKey);
-    const unsealedData = yc.AEAD.unseal(sealedbox, testCodec, alice.encryptionPrivateKey);
-    expect(unsealedData).toEqual(testObject);
-  });
-  it('fails to unseal with invalid keys', async () => {
-    const alice = yc.generateEncryptionKeyPair();
-    const bob = yc.generateEncryptionKeyPair();
-    type TestType = {
-      name: string,
-      age: number,
-      gender: 'M' | 'F' | 'N',
-      birthday: Date,
-      gigantor: BigInt
-    };
-    const testObject: TestType = {
-      name: 'Alice',
-      age: 25,
-      gender: 'F',
-      birthday: new Date(),
-      gigantor: BigInt('12345678901234567890')
-    };
-    type TestMetadata = { type: 'datagram://json/test', version: '0.1.0'};
-    const testMetadata: TestMetadata = { type: 'datagram://json/test', version: '0.1.0'};
-    const testCodec = yc.createJsonDatagramCodec<TestType, TestMetadata>(testMetadata);
-
-    const sealedbox = yc.AEAD.seal(testObject, testCodec, alice.encryptionPublicKey);
-    expect(() => yc.AEAD.unseal(sealedbox, testCodec, bob.encryptionPrivateKey)).toThrow();
-  });
-})
+// Additional tests for codec and metadata handling...

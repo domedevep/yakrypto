@@ -1,7 +1,7 @@
 {
   "name": "@domedevep/yakrypto",
   "version": "1.2.1",
-  "module": "nodenext",
+  "module": "NodeNext",
   "main": "dist/src/index.js",
   "author": "Domenico Scoppettone <domedevep@gmail.com>",
   "license": "MIT",
@@ -11,8 +11,8 @@
     "url": "https://github.com/domedevep/yakrypto.git"
   },
   "publishConfig": {
-      "registry": "https://npm.pkg.github.com/"
-   },
+    "registry": "https://npm.pkg.github.com/"
+  },
   "bugs": {
     "url": "https://github.com/domedevep/yakrypto/issues"
   },
@@ -33,11 +33,16 @@
     "publish:github": "npm publish --registry=https://npm.pkg.github.com --access=restricted"
   },
   "dependencies": {
+    "@noble/curves": "^1.6.0",
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.5.0",
+    "@types/semver": "7.5.8",
     "base64-js": "^1.5.1",
+    "i": "^0.3.7",
+    "npm": "^10.9.0",
     "semver": "7.6.2",
     "superjson": "2.2.1",
-    "tweetnacl": "^1.0.3",
-    "@types/semver": "7.5.8"
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@babel/core": "7.24.5",

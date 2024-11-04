@@ -13,19 +13,21 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
-    "isolatedModules": true,
+    // "isolatedModules": true,
     "outDir": "./dist",
     "declaration": true,
-    "jsx": "react",
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
+    // "jsx": "react",
     "types": ["node", "jest"],
     "typeRoots": ["./node_modules/@types"]
   },
   "include": [
     "src",
     "tests",
-    "jest.config.mjs"
+    "jest.config.mjs",
   ],
 }

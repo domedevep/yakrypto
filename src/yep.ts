@@ -1,138 +1,151 @@
-import { fromByteArray } from "base64-js"
-import { AEAD, DatagramCodec, DatagramMetadata, EncryptedDatagram, EncryptionKeyPair, EncryptionPrivateKey, EncryptionPublicKey, SigningPrivateKey, SigningPublicKey, SymmetricKey, TypedEncryptionKeyPair, TypedEncryptionPrivateKey, TypedEncryptionPublicKey, computeSharedKey, generateSymmetricKey } from "./crypto"
-import nacl from "tweetnacl"
-import { SymmetricKeyDatagramCodec, SymmetricKeyDatagramMetadata, createJsonDatagramCodec } from "./codec"
+// // yep.ts
 
-export type PermissionSecret<Name extends string> = { name: Name, key: SymmetricKey };
+// import { AEAD, DatagramCodec, DatagramMetadata, EncryptedDatagram, EncryptionPrivateKey, EncryptionPublicKey, generateKeyPair, generateSymmetricKey, SymmetricKey } from "../src/crypto";
+// import { SymmetricKeyDatagramCodec, PermissionGrantDatagramCodec, createJsonDatagramCodec, SymmetricKeyDatagramMetadata, PermissionGrantDatagramMetadata } from "../src/codec";
 
-export interface PermissionPublicKey<Name extends string> extends TypedEncryptionPublicKey<'permission'> {
-  name: Name;
-}
-export interface PermissionPrivateKey<Name extends string> extends TypedEncryptionPrivateKey<'permission'> {
-  name: Name;
-}
+// export type PermissionSecret<Name extends string> = { 
+//   name: Name, 
+//   key: SymmetricKey 
+// };
 
-export interface ServicePublicKey extends TypedEncryptionPublicKey<'service'> {}
-export interface ServicePrivateKey extends TypedEncryptionPrivateKey<'service'> {}
+// export interface PermissionPublicKey extends EncryptionPublicKey {
+//   subtype: 'permission';
+//   name: string;
+// }
 
-type PermissionDataType<Keys extends string> = { [Key in Keys]: PermissionPrivateKey<Key> };
-export type PermissionData<Keys extends string, Name extends string> = { privateKey: PermissionPrivateKey<Name>, data: PermissionDataType<Keys>};
+// export interface PermissionPrivateKey extends EncryptionPrivateKey {
+//   subtype: 'permission';
+//   name: string;
+// }
 
-export interface PermissionDataDatagramMetadata<Name extends string> extends DatagramMetadata {
-  type: `datagram://permission_${Name}`;
-  version: '0.1.0';
-}
+// export interface ServicePublicKey extends EncryptionPublicKey {
+//   subtype: 'service';
+// }
 
-export type Permission<Keys extends string, Name extends string> = {
-  name: Name,
-  publicKey: PermissionPublicKey<Name>,
-  privateData: EncryptedDatagram<PermissionData<Keys, Name> ,PermissionDataDatagramMetadata<Name>>;
-}
+// export interface ServicePrivateKey extends EncryptionPrivateKey {
+//   subtype: 'service';
+// }
 
-export type PermissionGrant<Name extends string> = { name: Name, grantKey: EncryptedDatagram<SymmetricKey, SymmetricKeyDatagramMetadata> };
-export type PermissionProof<Name extends string> = { name: Name, proofKey: EncryptedDatagram<SymmetricKey, SymmetricKeyDatagramMetadata> };
+// type PermissionDataType<Keys extends string> = { 
+//   [Key in Keys]: PermissionPrivateKey 
+// };
 
-export class YEP {
+// export type PermissionData<Keys extends string, Name extends string> = { 
+//   privateKey: PermissionPrivateKey, 
+//   data: PermissionDataType<Keys>
+// };
 
-  private static getCodec<Keys extends string, T extends PermissionDataType<Keys>,Name extends string>(name: Name): DatagramCodec<PermissionData<Keys, Name>, PermissionDataDatagramMetadata<Name>> {
-    const datagramMetadata: PermissionDataDatagramMetadata<Name> = {
-      type: `datagram://permission_${name}`,
-      version: '0.1.0'
-    };
-    return createJsonDatagramCodec(datagramMetadata);
-  }
+// export interface PermissionDataDatagramMetadata<Name extends string> extends DatagramMetadata {
+//   type: `datagram://permission_${Name}`;
+//   version: '0.1.0';
+// }
 
-  private static getPermissionSecretFromGrant<Name extends string>(grant: PermissionGrant<Name>, myPrivateKey: EncryptionPrivateKey): PermissionSecret<Name> {
-    return { name: grant.name, key: AEAD.unseal(grant.grantKey, SymmetricKeyDatagramCodec, myPrivateKey)};
-  }
+// export type Permission<Keys extends string, Name extends string> = {
+//   name: Name,
+//   publicKey: PermissionPublicKey,
+//   privateData: EncryptedDatagram<PermissionData<Keys, Name>, PermissionDataDatagramMetadata<Name>>;
+// };
 
-  static newPermission<Keys extends string, Name extends string>(name: Name, data: PermissionDataType<Keys>, myPublicKey: EncryptionPublicKey): { permission: Permission<Keys, Name>, keys:PermissionKeyPair<Name>, grant: PermissionGrant<Name> } {
-    const permissionKeyPair = generatePermissionKeyPair(name);
-    const permissionSecret = generateSymmetricKey();
-    const permissionData: PermissionData<Keys, Name> = { privateKey: permissionKeyPair.private, data };
-    const privateData = AEAD.encryptSymmetric(permissionData, YEP.getCodec(name), permissionSecret);
-    return { permission: { name, publicKey: permissionKeyPair.public, privateData }, keys: permissionKeyPair, grant: {name, grantKey: AEAD.seal(permissionSecret, SymmetricKeyDatagramCodec, myPublicKey) }};
-  }
+// export type PermissionGrant<Name extends string> = { 
+//   name: Name, 
+//   grantKey: EncryptedDatagram<SymmetricKey, SymmetricKeyDatagramMetadata> 
+// };
 
-  static createGrant<Name extends string>(myPrivateKey: EncryptionPrivateKey, myPermissionGrant: PermissionGrant<Name>, theirPublicKey: EncryptionPublicKey) : PermissionGrant<Name> {
-    return {name: myPermissionGrant.name, grantKey: AEAD.seal(AEAD.unseal(myPermissionGrant.grantKey, SymmetricKeyDatagramCodec, myPrivateKey), SymmetricKeyDatagramCodec, theirPublicKey)};
-  }
+// export class YEP {
+//   private static getCodec<Keys extends string, Name extends string>(
+//     name: Name
+//   ): DatagramCodec<PermissionData<Keys, Name>, PermissionDataDatagramMetadata<Name>> {
+//     const datagramMetadata: PermissionDataDatagramMetadata<Name> = {
+//       type: `datagram://permission_${name}`,
+//       version: '0.1.0'
+//     };
+//     return createJsonDatagramCodec(datagramMetadata);
+//   }
 
-  static createProof<Keys extends string, Name extends string>(
-      permission: Permission<Keys, Name>,
-      myPermissionGrant: PermissionGrant<Name>,
-      myPrivateKey: EncryptionPrivateKey,
-      mySigningKey: SigningPrivateKey,
-      servicePublicKey: ServicePublicKey): PermissionProof<Name> {
-    const permissionData = AEAD.decryptSymmetric(permission.privateData, YEP.getCodec(permission.name), YEP.getPermissionSecretFromGrant(myPermissionGrant, myPrivateKey).key);
-    const proofKey = AEAD.encryptAsymmetric(
-      computeSharedKey(servicePublicKey, permissionData.privateKey),
-      SymmetricKeyDatagramCodec,
-      myPrivateKey,
-      servicePublicKey,
-      mySigningKey);
-    return { name: permission.name, proofKey };
-  }
+//   static newPermission<Keys extends string, Name extends string>(
+//     name: Name, 
+//     data: PermissionDataType<Keys>, 
+//     myPublicKey: EncryptionPublicKey
+//   ): { 
+//     permission: Permission<Keys, Name>, 
+//     grant: PermissionGrant<Name> 
+//   } {
+//     const { publicKey, privateKey } = generateKeyPair();
+//     const permissionSecret = generateSymmetricKey();
 
-  static createProofFor<Keys extends string, Name extends string, ProofName extends Keys>(
-      name: ProofName,
-      permission: Permission<Keys, Name>,
-      myPermissionGrant: PermissionGrant<Name>,
-      myPrivateKey: EncryptionPrivateKey,
-      mySigningKey: SigningPrivateKey,
-      servicePublicKey: ServicePublicKey ): PermissionProof<ProofName> {
-    const permissionData = AEAD.decryptSymmetric(permission.privateData, YEP.getCodec(permission.name), YEP.getPermissionSecretFromGrant(myPermissionGrant, myPrivateKey).key);
-    const proofKey = AEAD.encryptAsymmetric(
-      computeSharedKey(servicePublicKey, permissionData.data[name]),
-      SymmetricKeyDatagramCodec,
-      myPrivateKey,
-      servicePublicKey,
-      mySigningKey);
-    return { name, proofKey };
-  }
+//     const permissionData: PermissionData<Keys, Name> = { 
+//       privateKey: { ...privateKey, name, subtype: 'permission' }, 
+//       data 
+//     };
 
-  static verifyProof<Name extends string>(permission: Permission<string,Name>, proof: PermissionProof<Name>, userPublicKey: EncryptionPublicKey, userSigningPublicKey: SigningPublicKey, servicePrivateKey: ServicePrivateKey): boolean {
-    const computedKey = computeSharedKey(permission.publicKey, servicePrivateKey);
-    return fromByteArray(
-      AEAD.decryptAsymmetric(
-        proof.proofKey,
-        SymmetricKeyDatagramCodec,
-        servicePrivateKey,
-        userPublicKey,
-        userSigningPublicKey
-      )) === fromByteArray(computedKey);
-  }
-}
+//     const privateData = AEAD.encryptSymmetric(
+//       permissionData, 
+//       YEP.getCodec(name), 
+//       permissionSecret
+//     );
 
-export class PermissionKeyPair<Name extends string> extends EncryptionKeyPair {
-  public: PermissionPublicKey<Name>;
-  private: PermissionPrivateKey<Name>;
+//     return { 
+//       permission: { 
+//         name, 
+//         publicKey: { ...publicKey, name, subtype: 'permission' }, 
+//         privateData 
+//       }, 
+//       grant: {
+//         name, 
+//         grantKey: AEAD.encryptAsymmetric(
+//           permissionSecret, 
+//           SymmetricKeyDatagramCodec,  // Encrypting symmetric key directly
+//           myPublicKey.key
+//         ) 
+//       }
+//     };
+//   }
 
-  constructor(name: Name, pub: Uint8Array | string, priv: Uint8Array | string) {
-    super(pub, priv);
-    this.private = {name, visibility:'private', type: 'encryption', subtype: 'permission', key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
-    this.public = {name, visibility: 'public', type: 'encryption', subtype: 'permission', key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
-  }
-}
+//   static createProof<Name extends string>(
+//     permission: Permission<never, Name>, 
+//     grant: PermissionGrant<Name>, 
+//     privateKey: EncryptionPrivateKey, 
+//     signingKey: EncryptionPrivateKey, 
+//     servicePublicKey: EncryptionPublicKey
+//   ): EncryptedDatagram<PermissionGrant<Name>, PermissionGrantDatagramMetadata> {
+//     // Create a proof by encrypting the PermissionGrant using asymmetric encryption
+//     return AEAD.encryptAsymmetric(grant, PermissionGrantDatagramCodec, servicePublicKey.key);
+//   }
 
-export class ServiceKeyPair extends TypedEncryptionKeyPair<'service'> {
-  constructor(pub: Uint8Array | string, priv: Uint8Array | string) {
-    super(pub, priv, 'service');
-  }
-}
+//   static verifyProof<Name extends string>(
+//     permission: Permission<never, Name>, 
+//     proof: EncryptedDatagram<PermissionGrant<Name>, PermissionGrantDatagramMetadata>, 
+//     publicKey: EncryptionPublicKey, 
+//     signingPublicKey: EncryptionPublicKey, 
+//     servicePrivateKey: EncryptionPrivateKey
+//   ): boolean {
+//     try {
+//       // Decrypt the proof and check if the grant name matches the permission
+//       const decryptedGrant = AEAD.decryptAsymmetric(proof, PermissionGrantDatagramCodec, servicePrivateKey.key);
+//       return decryptedGrant.name === permission.name;
+//     } catch (e) {
+//       return false;
+//     }
+//   }
 
-/**
- * @returns {PermissionKeyPair} Keypair used to represent permission.
- */
-export function generatePermissionKeyPair<Name extends string>(name: Name): PermissionKeyPair<Name> {
-  const permKeypair = nacl.box.keyPair();
-  return new PermissionKeyPair(name, permKeypair.publicKey, permKeypair.secretKey);
-}
+//   static createGrant<Name extends string>(
+//     myPrivateKey: EncryptionPrivateKey, 
+//     myPermissionGrant: PermissionGrant<Name>, 
+//     theirPublicKey: EncryptionPublicKey
+//   ): PermissionGrant<Name> {
+//     const symmetricKey = AEAD.decryptAsymmetric(
+//       myPermissionGrant.grantKey, 
+//       SymmetricKeyDatagramCodec,  // Decrypts symmetric key directly
+//       myPrivateKey.key
+//     );
 
-/**
- * @returns {ServiceKeyPair} Keypair used to represent service identity.
- */
-export function generateServiceKeyPair(): ServiceKeyPair {
-  const permKeypair = nacl.box.keyPair();
-  return new ServiceKeyPair(permKeypair.publicKey, permKeypair.secretKey);
-}
+//     return {
+//       name: myPermissionGrant.name, 
+//       grantKey: AEAD.encryptAsymmetric(
+//         symmetricKey, 
+//         SymmetricKeyDatagramCodec,  // Re-encrypt symmetric key for other party
+//         theirPublicKey.key
+//       )
+//     };
+//   }
+// }

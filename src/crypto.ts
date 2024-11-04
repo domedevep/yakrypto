@@ -1,320 +1,229 @@
-import nacl from 'tweetnacl';
-import { toByteArray, fromByteArray } from 'base64-js';
-import { Range } from 'semver';
+// crypto.ts
+import {
+  createSecretKey, generateKeyPairSync, randomBytes, createHash, createHmac,
+  createCipheriv, createDecipheriv, type CipherKey, publicEncrypt, privateDecrypt
+} from 'crypto';
 
 export type SymmetricKey = Uint8Array;
 export type Nonce = Uint8Array;
-export type PublicKey = { visibility: 'public', type: string, key: string };
-export type PrivateKey = { visibility: 'private', type: string, key: string };
+export type PublicKey = { visibility: 'public', type: 'encryption' | 'signing', key: string };
+export type PrivateKey = { visibility: 'private', type: 'encryption' | 'signing', key: string };
 
-export interface EncryptionPublicKey extends PublicKey {
-  type: 'encryption'
-}
-export interface EncryptionPrivateKey extends PrivateKey {
-  type: 'encryption'
-}
-
-export interface SigningPublicKey extends PublicKey {
-  type: 'signing'
-}
-export interface SigningPrivateKey extends PrivateKey {
-  type: 'signing'
-}
-
-/**
- * DatagramMetadata - Type and version information.
- */
 export interface DatagramMetadata {
   type: string;
   version: string;
 }
 
-// The Datagram is an internal representation of unencrypted data, and the consuming package
-// shouldn't worry about its structure. Thus, it is private and not exported.
-interface Datagram<T, M extends DatagramMetadata> {
-  metadata: M;
-  signature?: string;
-  data: string;
+export interface EncryptionPublicKey {
+  visibility: 'public';
+  type: 'encryption';
+  key: string;
+  subtype?: string;
 }
 
-/**
- * EncryptedDatagram - Typed encrypted AEAD object.
- * Easily serializable/deserializable as JSON for use over wire.
- */
-export interface EncryptedDatagram<T, M extends DatagramMetadata> {
-  payload: string; // base64 encoded encrypted bytes.
-  metadata: M;
-};
+export interface EncryptionPrivateKey {
+  visibility: 'private';
+  type: 'encryption';
+  key: string;
+  subtype?: string;
+}
 
-/**
- * DatagramCodec - Codec for serializing/deserializing datagrams for cryptography.
- */
-export interface DatagramCodec<T, M extends DatagramMetadata>{
+export interface EncryptedDatagram<T, M extends DatagramMetadata> {
+  payload: string;
   metadata: M;
-  versionRange: Range;
+}
+
+export interface DatagramCodec<T, M extends DatagramMetadata> {
+  metadata: M;
+  versionRange: string;
   serialize(data: T): Uint8Array;
   deserialize(bytes: Uint8Array): T;
 }
 
-/**
- * AEAD - Authenticated Encryption with Associated Data simplified!
- * 
- * This is the meat of the yaki-crypto library. This class hides all the complexity behind
- * encrypting and decrypting datagrams. Also, this class enforces Type Safety while encrypting
- * and decrypting datagram through the use of DatagramCodecs (Serialization/Deserialization helpers)
- * and DatagramMetadatas (part of the Associated Data).
- * 
- * Asymmetric Encryption requires signature verification through the use of public/private signing
- * keypairs, while Symmetric encryption can be optionally signed.
- * 
- * Underneath it all, this class uses the robust and well tested tweetnacl library.
- */
 export class AEAD {
-  private static sealDatagram<T, M extends DatagramMetadata>(datagram: Datagram<T,M>, publicKey: EncryptionPublicKey): Uint8Array{
-    const encryptionKeypair = nacl.box.keyPair();
-    const sealKey = nacl.box.before(toByteArray(publicKey.key), encryptionKeypair.secretKey);
-    const encryptedMsg = this.encryptDatagram(datagram, sealKey);
-    const fullMessage = new Uint8Array(encryptionKeypair.publicKey.length + encryptedMsg.length);
-    fullMessage.set(encryptionKeypair.publicKey, 0);
-    fullMessage.set(encryptedMsg, encryptionKeypair.publicKey.length);
-    return fullMessage;
-  }
+  private static readonly ALGORITHM = 'aes-256-gcm';
+  private static readonly IV_LENGTH = 12;
+  private static readonly AUTH_TAG_LENGTH = 16;
 
-  private static unsealDatagram<T, M extends DatagramMetadata>(bytes: Uint8Array, codec: DatagramCodec<T,M>, privateKey: EncryptionPrivateKey): Datagram<T, M> {
-    const fullMessage = bytes;
-    const encryptionPublicKey = fullMessage.slice(0, nacl.box.publicKeyLength);
-    const encryptedMsg = fullMessage.slice(nacl.box.publicKeyLength);
-    const sealKey = nacl.box.before(encryptionPublicKey, toByteArray(privateKey.key));
-    return this.decryptDatagram(encryptedMsg, codec, sealKey);
-  }
+  static encryptSymmetric<T, M extends DatagramMetadata>(
+    data: T,
+    codec: DatagramCodec<T, M>,
+    key: SymmetricKey
+  ): EncryptedDatagram<T, M> {
+    const serialized = codec.serialize(data);
+    const iv = new Uint8Array(randomBytes(this.IV_LENGTH));  // Using Uint8Array directly
 
-  private static encryptDatagram<T, M extends DatagramMetadata>(datagram: Datagram<T, M>, key: SymmetricKey): Uint8Array{
-    const jsonString = JSON.stringify(datagram);
-    const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-    const box = nacl.secretbox(utf8StringToBytes(jsonString), nonce, key);
-    const fullMessage = new Uint8Array(nonce.length + box.length);
-    fullMessage.set(nonce, 0);
-    fullMessage.set(box, nonce.length);
-    return fullMessage
-  }
+    // Ensure `key` is in the correct format (BinaryLike) by using createSecretKey.
+    const cipher = createCipheriv(this.ALGORITHM, createSecretKey(key), iv);
+    const serializedData = Buffer.isBuffer(serialized) ? new Uint8Array(serialized) : serialized;
 
-  private static decryptDatagram<T, M extends DatagramMetadata>(bytes: Uint8Array, codec: DatagramCodec<T, M>, key: SymmetricKey): Datagram<T, M> {
-    const fullMessage = bytes;
-    const nonce = fullMessage.slice(0,nacl.secretbox.nonceLength);
-    const msg = fullMessage.slice(nonce.length);
-    const decryptedBytes = nacl.secretbox.open(msg, nonce, key);
-    if (!decryptedBytes)
-      throw Error('Could not decrypt the provided datagram using the key.');
-    const jsonString = bytesToUtf8String(decryptedBytes);
-    const decryptedDatagram = JSON.parse(jsonString);
-    if (!(decryptedDatagram.metadata?.type && decryptedDatagram.metadata?.version && decryptedDatagram.data))
-      throw Error('Invalid datagram decrypted with missing type, version and/or data.');
-    if (decryptedDatagram.metadata?.type !== codec.metadata.type) {
-      throw Error('Datagram type mismatch');
-    }
-    if (!codec.versionRange.test(decryptedDatagram.metadata.version)) {
-      throw Error('Datagram version is incompatible with codec.');
-    }
-    return decryptedDatagram as Datagram<T,M>;
-  }
+    // Convert `serialized` to `Uint8Array` to avoid Buffer issues
+    const encryptedBuffer = Buffer.concat([
+      new Uint8Array(cipher.update(serializedData)),
+      new Uint8Array(cipher.final())
+    ]);
+    const authTag = cipher.getAuthTag();
 
-  private static computeSignature(data: Uint8Array | string, signingKey: SigningPrivateKey): Uint8Array {
-    const dataBytes = (typeof data === 'string') ? toByteArray(data) : data;
-    const hash = nacl.hash(dataBytes);
-    return nacl.sign.detached(hash, toByteArray(signingKey.key));
-  }
+    const fullMessage = new Uint8Array(iv.length + encryptedBuffer.length + authTag.length);
+    fullMessage.set(iv, 0);
+    fullMessage.set(encryptedBuffer, iv.length);
+    fullMessage.set(authTag, iv.length + encryptedBuffer.length);
 
-  private static verifySignature(data: Uint8Array | string, signature: Uint8Array | string, verifyKey: SigningPublicKey): boolean {
-    const dataBytes = (typeof data === 'string') ? toByteArray(data) : data;
-    const signatureBytes = (typeof signature === 'string') ? toByteArray(signature) : signature;
-    const hash = nacl.hash(dataBytes);
-    return nacl.sign.detached.verify(hash, signatureBytes, toByteArray(verifyKey.key));
-  }
-
-  static encryptSymmetric<T, M extends DatagramMetadata>(data: T, codec: DatagramCodec<T,M>, key: SymmetricKey): EncryptedDatagram<T,M> {
-    const datagram: Datagram<T,M>= {metadata: codec.metadata, data:fromByteArray(codec.serialize(data))};
-    const bytes = fromByteArray(this.encryptDatagram(datagram, key));
-    return { payload: bytes, metadata: codec.metadata };
-  }
-
-  static signAndEncryptSymmetric<T, M extends DatagramMetadata>(data: T, codec: DatagramCodec<T,M>, key: SymmetricKey, signingKey: SigningPrivateKey): EncryptedDatagram<T,M> {
-    const serializedData = codec.serialize(data);
-    const signature = this.computeSignature(serializedData, signingKey);
-    const datagram: Datagram<T,M> = {metadata: codec.metadata, signature: fromByteArray(signature), data: fromByteArray(serializedData)};
-    const bytes = fromByteArray(AEAD.encryptDatagram(datagram, key));
-    return { payload: bytes, metadata: codec.metadata };
-  }
-
-  static encryptAsymmetric<T, M extends DatagramMetadata>(data: T, codec: DatagramCodec<T,M>, myPrivateKey: EncryptionPrivateKey, theirPublicKey: EncryptionPublicKey, mySigningPrivateKey: SigningPrivateKey): EncryptedDatagram<T,M> {
-    const key = nacl.box.before(toByteArray(theirPublicKey.key), toByteArray(myPrivateKey.key));
-    return AEAD.signAndEncryptSymmetric(data, codec, key, mySigningPrivateKey);    
-  }
-
-  static decryptSymmetric<T, M extends DatagramMetadata>(encrypted: EncryptedDatagram<T,M>, codec: DatagramCodec<T,M>, key: SymmetricKey): T {
-    const datagram = AEAD.decryptDatagram(toByteArray(encrypted.payload), codec, key);
-    return codec.deserialize(toByteArray(datagram.data));
-  }
-
-  static decryptSymmetricAndVerify<T, M extends DatagramMetadata>(encrypted: EncryptedDatagram<T,M>, codec: DatagramCodec<T,M>, key: SymmetricKey, signingPublicKey: SigningPublicKey): T {
-    const datagram = AEAD.decryptDatagram(toByteArray(encrypted.payload), codec, key);
-    if(!datagram.signature || !AEAD.verifySignature(datagram.data, datagram.signature, signingPublicKey))
-      throw Error('Could not verify signature.');
-    return codec.deserialize(toByteArray(datagram.data));
-  }
-
-  static decryptAsymmetric<T, M extends DatagramMetadata>(encrypted: EncryptedDatagram<T,M>, codec: DatagramCodec<T,M>, myPrivateKey: EncryptionPrivateKey, theirPublicKey: EncryptionPublicKey, theirSigningPublicKey: SigningPublicKey): T {
-    const key = computeSharedKey(theirPublicKey, myPrivateKey);
-    return AEAD.decryptSymmetricAndVerify(encrypted, codec, key, theirSigningPublicKey);
-  }
-
-  static seal<T, M extends DatagramMetadata>(data: T, codec: DatagramCodec<T,M>, theirPublicKey: EncryptionPublicKey): EncryptedDatagram<T,M> {
-    const serializedData = codec.serialize(data);
-    const datagram: Datagram<T,M> = {metadata: codec.metadata, data: fromByteArray(serializedData)};
-    const bytes = fromByteArray(AEAD.sealDatagram(datagram, theirPublicKey));
-    return { payload: bytes, metadata: codec.metadata };
-  }
-
-  static unseal<T, M extends DatagramMetadata>(encrypted: EncryptedDatagram<T,M>, codec: DatagramCodec<T,M>, myPrivateKey: EncryptionPrivateKey): T {
-    const datagram = AEAD.unsealDatagram(toByteArray(encrypted.payload), codec, myPrivateKey);
-    return codec.deserialize(toByteArray(datagram.data));
-  }
-}
-
-export function computeSharedKey(theirPublicKey: EncryptionPublicKey, myPrivateKey: EncryptionPrivateKey): SymmetricKey {
-  return nacl.box.before(toByteArray(theirPublicKey.key), toByteArray(myPrivateKey.key));
-}
-
-export const utf8StringToBytes = (data: string) => {
-  const utf8encoder = new TextEncoder();
-  return utf8encoder.encode(data);
-};
-
-export const bytesToUtf8String = (data: Uint8Array) => {
-  const utf8decoder = new TextDecoder();
-  return utf8decoder.decode(data);
-};
-
-export function trimAndLowercase(str: string) {
-  return str.trim().toLowerCase();
-}
-
-/**
- * Typesafe KeyPair class for Public/Private Key Cryptography.
- */
-export interface KeyPair {
-  encryptionPublicKey: PublicKey;
-  encryptionPrivateKey: PrivateKey;  
-}
-
-export class EncryptionKeyPair implements KeyPair {
-  public encryptionPublicKey: EncryptionPublicKey;
-  readonly encryptionPrivateKey: EncryptionPrivateKey;
-
-  constructor(pub: Uint8Array | string, priv: Uint8Array | string) {
-    this.encryptionPrivateKey = {visibility:'private', type: 'encryption', key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
-    this.encryptionPublicKey = {visibility: 'public', type: 'encryption', key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
-  }
-  /**
-   * returns a non-type safe keypair that can be easily plugged into any tweetnacl function.
-   * @returns {BoxKeypair} tweetnacl keypair.
-   */
-  toBoxKeyPair = (): nacl.BoxKeyPair => {
     return {
-      publicKey: toByteArray(this.encryptionPublicKey.key),
-      secretKey: toByteArray(this.encryptionPrivateKey.key),
+      payload: Buffer.from(fullMessage).toString('base64'),
+      metadata: codec.metadata
+    };
+  }
+
+  static decryptSymmetric<T, M extends DatagramMetadata>(
+    encrypted: EncryptedDatagram<T, M>,
+    codec: DatagramCodec<T, M>,
+    key: SymmetricKey
+  ): T {
+    // Validate codec metadata
+    if (encrypted.metadata.type !== codec.metadata.type || 
+        encrypted.metadata.version !== codec.metadata.version) {
+      throw new Error('Incompatible codec metadata for decryption');
     }
+  
+    const fullMessage = new Uint8Array(Buffer.from(encrypted.payload, 'base64'));
+    const iv = fullMessage.subarray(0, this.IV_LENGTH);
+    const authTag = fullMessage.subarray(-this.AUTH_TAG_LENGTH);
+    const data = fullMessage.subarray(this.IV_LENGTH, -this.AUTH_TAG_LENGTH);
+  
+    const decipher = createDecipheriv(this.ALGORITHM, createSecretKey(key), iv);
+    decipher.setAuthTag(authTag);
+  
+    const decryptedBuffer = Buffer.concat([
+      new Uint8Array(decipher.update(data)),
+      new Uint8Array(decipher.final())
+    ]);
+  
+    return codec.deserialize(new Uint8Array(decryptedBuffer));
   }
-}
+  
+  static encryptAsymmetric<T, M extends DatagramMetadata>(
+    data: T,
+    codec: DatagramCodec<T, M>,
+    publicKey: string
+  ): EncryptedDatagram<T, M> {
+    const key = new Uint8Array(randomBytes(32));
+    const encrypted = this.encryptSymmetric(data, codec, key);
+    const encryptedKey = publicEncrypt(publicKey, new Uint8Array(Buffer.from(key)));
 
-export class SigningKeyPair implements KeyPair {
-  public encryptionPublicKey: SigningPublicKey;
-  readonly encryptionPrivateKey: SigningPrivateKey;
-
-  constructor(pub: Uint8Array | string, priv: Uint8Array | string) {
-    this.encryptionPublicKey = {visibility: 'public', type: 'signing', key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
-    this.encryptionPrivateKey = {visibility:'private', type: 'signing', key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
-  }
-
-  /**
-   * returns a non-type safe keypair that can be easily plugged into any tweetnacl function.
-   * @returns {BoxKeypair} tweetnacl keypair.
-   */
-  toSignKeyPair = (): nacl.SignKeyPair => {
     return {
-      publicKey: toByteArray(this.encryptionPublicKey.key),
-      secretKey: toByteArray(this.encryptionPrivateKey.key),
-    }
+      payload: `${encryptedKey.toString('base64')}.${encrypted.payload}`,
+      metadata: codec.metadata
+    };
+  }
+
+  static decryptAsymmetric<T, M extends DatagramMetadata>(
+    encrypted: EncryptedDatagram<T, M>,
+    codec: DatagramCodec<T, M>,
+    privateKey: string
+  ): T {
+    const [encryptedKey, payload] = encrypted.payload.split('.');
+    const keyBuffer = privateDecrypt(privateKey, new Uint8Array(Buffer.from(encryptedKey, 'base64')));
+    const key = new Uint8Array(keyBuffer);
+
+    return this.decryptSymmetric(
+      { payload, metadata: encrypted.metadata },
+      codec,
+      key
+    );
   }
 }
 
-export interface TypedEncryptionPublicKey<T extends string> extends EncryptionPublicKey {
-  subtype: T
-}
-
-export interface TypedEncryptionPrivateKey<T extends string> extends EncryptionPrivateKey {
-  subtype: T
-}
-
-export class TypedEncryptionKeyPair<T extends string> extends EncryptionKeyPair {
-  public: TypedEncryptionPublicKey<T>;
-  private: TypedEncryptionPrivateKey<T>;
-
-  constructor(pub: Uint8Array | string, priv: Uint8Array | string, subtype: T) {
-    super(pub, priv);
-    this.private = {visibility: 'private', type: 'encryption', subtype, key: (typeof priv === 'string') ? priv : fromByteArray(priv)};
-    this.public = {visibility: 'public', type: 'encryption', subtype, key: (typeof pub === 'string') ? pub : fromByteArray(pub)};
-  }
-}
-
-export interface TypedSigningPublicKey<T extends string> extends SigningPublicKey {
-  subtype: T
-}
-
-export interface TypedSigningPrivateKey<T extends string> extends SigningPrivateKey {
-  subtype: T
-}
-
-export class TypedSigningKeyPair<T extends string> extends SigningKeyPair {
-  declare public encryptionPublicKey: TypedSigningPublicKey<T>;
-  declare readonly encryptionPrivateKey: TypedSigningPrivateKey<T>;
-
-  constructor(pub: Uint8Array | string, priv: Uint8Array | string, subtype: T) {
-    super(pub, priv);
-    this.encryptionPublicKey = { visibility: 'public', type: 'signing', subtype, key: (typeof pub === 'string') ? pub : fromByteArray(pub) };
-    this.encryptionPrivateKey = { visibility: 'private', type: 'signing', subtype, key: (typeof priv === 'string') ? priv : fromByteArray(priv) };
-  }
-}
-
-/**
- * Generates a Symmetric encryption key.
- * @returns {SymmetricKey} a random key used for Symmetric encryption.
- */
 export function generateSymmetricKey(): SymmetricKey {
-  return nacl.randomBytes(nacl.secretbox.keyLength);
+  return new Uint8Array(randomBytes(32));
 }
 
-/**
- * Generates a nonce (a single use number) to be used for encryption.
- * @returns {Nonce} random string of bytes.
- */
-export function generateNonce(): Nonce {
-  return nacl.randomBytes(nacl.secretbox.nonceLength);
+export function generateKeyPair(): {
+  publicKey: EncryptionPublicKey,
+  privateKey: EncryptionPrivateKey
+} {
+  const keys = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem'
+    },
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem'
+    }
+  });
+
+  return {
+    publicKey: {
+      visibility: 'public',
+      type: 'encryption',
+      key: keys.publicKey
+    },
+    privateKey: {
+      visibility: 'private',
+      type: 'encryption',
+      key: keys.privateKey
+    }
+  };
 }
 
-/**
- * 
- * @returns {EncryptionKeyPair} Keypair used for encryption.
- */
-export function generateEncryptionKeyPair(): EncryptionKeyPair {
-  const keypair = nacl.box.keyPair();
-  return new EncryptionKeyPair(keypair.publicKey, keypair.secretKey);
+export function generateSigningKeyPair(): {
+  publicKey: PublicKey;
+  privateKey: PrivateKey;
+} {
+  const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem',
+    },
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem',
+    },
+  });
+
+  return {
+    publicKey: {
+      visibility: 'public',
+      type: 'signing', // Specify the type correctly
+      key: publicKey,
+    },
+    privateKey: {
+      visibility: 'private',
+      type: 'signing', // Specify the type correctly
+      key: privateKey,
+    },
+  };
 }
 
-/**
- * 
- * @returns {SigningKeyPair} Keypair used for signing.
- */
-export function generateSigningKeyPair(): SigningKeyPair {
-  const signingKeypair = nacl.sign.keyPair();
-  return new SigningKeyPair(signingKeypair.publicKey, signingKeypair.secretKey);
+export function generateEncryptionKeyPair(): {
+  publicKey: EncryptionPublicKey;
+  privateKey: EncryptionPrivateKey;
+} {
+  const keys = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem',
+    },
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem',
+    },
+  });
+
+  return {
+    publicKey: {
+      visibility: 'public',
+      type: 'encryption', // Ensure this matches the required type
+      key: keys.publicKey,
+    },
+    privateKey: {
+      visibility: 'private',
+      type: 'encryption', // Ensure this matches the required type
+      key: keys.privateKey,
+    },
+  };
 }
