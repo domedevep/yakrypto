@@ -105,4 +105,3 @@ describe('AEAD encryption and decryption', () => {
   });
 });
 
-// Additional tests for codec and metadata handling...
