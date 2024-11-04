@@ -1,6 +1,7 @@
 // codec.ts
 import { DatagramCodec, DatagramMetadata, SymmetricKey } from "./crypto";
 // import { PermissionGrant } from "./yep";
+import { Buffer } from "buffer";
 
 export type StringDatagramMetadata = {
   type: 'datagram://string',
