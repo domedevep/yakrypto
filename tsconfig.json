@@ -13,8 +13,8 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "outDir": "./dist",
@@ -26,6 +26,6 @@
   "include": [
     "src",
     "tests",
-    "jest.config.js"
+    "jest.config.mjs"
   ],
 }

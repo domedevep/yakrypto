@@ -1,6 +1,15 @@
 import { Range } from "semver";
 import { DatagramCodec, DatagramMetadata, SymmetricKey, bytesToUtf8String, utf8StringToBytes } from "./crypto";
-import { SuperJSON } from "superjson";
+// import { SuperJSON } from "superjson"; make dynamic because it is ecmascript
+
+
+let SuperJSON: any;
+
+async function loadSuperJSON() {
+  SuperJSON = (await import('superjson')).SuperJSON;
+}
+
+loadSuperJSON();
 
 export type StringDatagramMetadata = {
   type: 'datagram://string',
