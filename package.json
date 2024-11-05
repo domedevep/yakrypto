@@ -1,6 +1,6 @@
 {
   "name": "@domedevep/yakrypto",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "module": "NodeNext",
   "main": "dist/src/index.js",
   "author": "Domenico Scoppettone <domedevep@gmail.com>",
