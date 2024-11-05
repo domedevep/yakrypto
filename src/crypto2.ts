@@ -1,5 +1,5 @@
 import EncryptDecrypt from "post_body_encrypt_decrypt";
 
-export default EncryptDecrypt;
+export const newEncryptDecrypt = new EncryptDecrypt();
 
 
