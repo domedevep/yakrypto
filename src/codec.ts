@@ -7,12 +7,13 @@ export type StringDatagramMetadata = {
   version: '0.1.0'
 };
 
-export const StringDatagramCodec: DatagramCodec<string, StringDatagramMetadata> = {
-  metadata: { type: 'datagram://string', version: '0.1.0'},
-  versionRange: '^0.1.0',
-  serialize: str => new Uint8Array(Buffer.from(str)),
-  deserialize: buf => Buffer.from(buf).toString()
+export const StringDatagramCodec = {
+  metadata: { type: 'datagram://string', version: '1.0' },
+  versionRange: '1.0',
+  serialize: (data: string): Uint8Array => new TextEncoder().encode(data),
+  deserialize: (bytes: Uint8Array): string => new TextDecoder().decode(bytes)
 };
+
 
 export type NumberDatagramMetadata = {
   type: 'datagram://number',
