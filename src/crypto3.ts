@@ -1,6 +1,7 @@
 // crypto.ts
 import * as CryptoJS from 'crypto-js';
 import * as forge from 'node-forge';
+import {Buffer} from 'buffer';
 
 export type SymmetricKey = Uint8Array;
 export type Nonce = Uint8Array;
