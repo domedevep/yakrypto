@@ -18,4 +18,22 @@ declare module 'browser-crypto' {
       setAuthTag(tag: Uint8Array): this;
       setAAD(aad: Uint8Array): this;
     }
+
+    export function createECDH(curveName: string): ECDH;
+    export interface ECDH {
+      generateKeys(): Uint8Array;
+      computeSecret(publicKey: Uint8Array): Uint8Array;
+    }
+
+    export function pbkdf2(password: string, salt: string, iterations: number, keylen: number, digest: string, callback: (error: Error | null, derivedKey: Uint8Array) => void): void;
+
+    export function pbkdf2Sync(password: string, salt: string, iterations: number, keylen: number, digest: string): Uint8Array;
+
+    export const Buffer: {
+      from(data: string): Uint8Array;
+      alloc(size: number): Uint8Array;
+      concat(buffers: Uint8Array[]): Uint8Array
+    }
+
+    export function randomBytes(size: number): Uint8Array;
   }
