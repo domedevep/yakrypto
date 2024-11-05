@@ -29,5 +29,6 @@
     "src",
     "tests",
     "jest.config.mjs",
+   "src/postBodyEncryptDecrypt.d.ts"
   ],
 }

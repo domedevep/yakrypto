@@ -1,6 +1,6 @@
 declare module 'post_body_encrypt_decrypt' {
-    declare class EncryptDecrypt {
-        generateSymmetricKey(): any;
+    declare static class EncrytpDecrypt {
+        static encryptDecrypt(data: any, key: string, action: string): any;
     }
     export default EncryptDecrypt;
 }
