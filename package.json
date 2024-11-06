@@ -5,7 +5,6 @@
   "main": "dist/src/index.js",
   "author": "Domenico Scoppettone <domedevep@gmail.com>",
   "license": "MIT",
-  "private": true,
   "homepage": "https://github.com/yakrypto/crypto",
   "repository": {
     "type": "git",
