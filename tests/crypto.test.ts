@@ -99,7 +99,7 @@ describe('AEAD encryption and decryption', () => {
     
     const decrypted = cryptoModule.AEAD.decryptAsymmetric(encrypted, StringDatagramCodec, keyPair.privateKey.key);
     console.log('Decrypted string with private key:', decrypted);
-
+    console.log({decrypted}); //
     expect(decrypted).toEqual(testString);
     console.log('Asymmetric string encryption and decryption test passed.');
   });
